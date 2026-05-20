@@ -1,0 +1,6 @@
+{
+  "name": "ResolveLayer Protocol",
+  "description": "Decentralized intent-to-outcome resolution protocol on GenLayer",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
