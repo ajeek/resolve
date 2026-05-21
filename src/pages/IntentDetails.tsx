@@ -1,98 +1,151 @@
+import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { useStore } from '../store';
-import { ArrowLeft, Fingerprint, Play } from 'lucide-react';
-import { LifecycleVisualizer } from '../components/status/LifecycleVisualizer';
-import { EvidenceViewer } from '../components/adjudication/EvidenceViewer';
-import { ConsensusPanel } from '../components/adjudication/ConsensusPanel';
-import { OutcomePanel } from '../components/adjudication/OutcomePanel';
-import { TraceTimeline } from '../components/traces/TraceTimeline';
+import { Loader2 } from 'lucide-react';
+import { getIntent } from '../lib/contractClient';
+
+type Props = {
+  intent: {
+    natural_language?: string;
+    status?: string;
+    submitted_at?: number;
+    settled_at?: number;
+    submitter?: string;
+  };
+};
+
+const formatTimestamp = (ts?: number) => {
+  if (!ts || ts === 0) return "—";
+
+  const date = new Date(ts * 1000);
+
+  if (isNaN(date.getTime())) return "—";
+
+  return date.toLocaleString();
+};
+
+const safeText = (value?: string) => value?.trim() || "—";
+
+const formatStatus = (status?: string) => {
+  if (!status) return "—";
+
+  switch (status.toLowerCase()) {
+    case "pending":
+      return "⏳ Pending";
+    case "adjudicated":
+      return "⚖️ Adjudicated";
+    case "settled":
+      return "✅ Settled";
+    case "rejected":
+      return "❌ Rejected";
+    default:
+      return status;
+  }
+};
+
+function IntentView({ intent }: Props) {
+  return (
+    <div className="space-y-3">
+
+      <div>
+        <p className="text-sm text-gray-500">Intent</p>
+        <p>{safeText(intent.natural_language)}</p>
+      </div>
+
+      <div>
+        <p className="text-sm text-gray-500">Status</p>
+        <p>{formatStatus(intent.status)}</p>
+      </div>
+
+      <div>
+        <p className="text-sm text-gray-500">Submitted At</p>
+        <p>{formatTimestamp(intent.submitted_at)}</p>
+      </div>
+
+      <div>
+        <p className="text-sm text-gray-500">Submitter</p>
+        <p className="font-mono text-xs">
+          {safeText(intent.submitter)}
+        </p>
+      </div>
+
+      <div>
+        <p className="text-sm text-gray-500">Settled At</p>
+        <p>{formatTimestamp(intent.settled_at)}</p>
+      </div>
+
+    </div>
+  );
+}
 
 export function IntentDetails() {
   const { id } = useParams();
   const intentId = Number(id);
   
-  const { intents, evidences, consensus_traces, outcomes, audit_trail, adjudicateIntent } = useStore();
-  
-  const intent = intents[intentId];
-  const evidence = evidences[intentId];
-  const consensus = consensus_traces[intentId];
-  const outcome = outcomes[intentId];
-  const auditLogs = audit_trail.filter(a => a.intent_id === intentId).sort((a,b) => b.timestamp - a.timestamp);
+  const [intent, setIntent] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+    const fetchData = async () => {
+      try {
+        const intentData = await getIntent(intentId);
+        if (mounted) {
+          setIntent(intentData);
+          setLoading(false);
+        }
+      } catch (err: any) {
+        if (mounted) {
+          setError(err.message || 'RPC Error');
+          setLoading(false);
+        }
+      }
+    };
+    fetchData();
+    return () => { mounted = false; };
+  }, [intentId]);
+
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-gray-500">
+        <Loader2 className="w-6 h-6 animate-spin mb-4" />
+        <p className="text-sm">Fetching from contract...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-center gap-4">
+        <div className="p-4 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800 text-sm">
+          RPC Error: {error}
+        </div>
+        <Link to="/dashboard" className="text-[#2563EB] dark:text-[#3B82F6] hover:underline text-sm">Return to Dashboard</Link>
+      </div>
+    );
+  }
 
   if (!intent) {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-center">
-        <h2 className="text-xl font-medium mb-2">Intent Not Found</h2>
-        <Link to="/dashboard" className="text-blue-600 hover:underline text-sm hover:text-blue-500">Return to Dashboard</Link>
+        <h2 className="text-xl font-medium mb-2 text-[#111827] dark:text-[#F9FAFB]">Intent Not Found</h2>
+        <Link to="/dashboard" className="text-[#2563EB] dark:text-[#3B82F6] hover:underline text-sm">Return to Dashboard</Link>
       </div>
     );
   }
 
   return (
-    <div className="max-w-5xl mx-auto w-full flex flex-col gap-6">
-      <div className="flex items-center justify-between mb-2">
-        <Link 
-          to="/dashboard"
-          className="flex items-center gap-2 text-sm font-medium text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition-colors"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Back to Dashboard
-        </Link>
-        {intent.status === 'INTENT_SUBMITTED' && (
-          <button 
-            onClick={() => adjudicateIntent(intentId)}
-            className="flex items-center gap-2 px-4 py-2 bg-slate-900 border border-slate-900 dark:bg-blue-600 dark:border-blue-600 hover:bg-slate-800 dark:hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors shadow-sm"
-          >
-            <Play className="w-4 h-4" />
-            Adjudicate Now
-          </button>
-        )}
-      </div>
-
-      <LifecycleVisualizer currentStatus={intent.status} />
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 flex flex-col gap-6">
-          <div className="border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 rounded-xl overflow-hidden shadow-sm">
-            <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50">
-              <Fingerprint className="w-4 h-4 text-slate-500" />
-              <span className="text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Intent Record</span>
-            </div>
-            <div className="p-5 flex flex-col gap-5">
-              <p className="text-[15px] font-medium text-slate-900 dark:text-slate-100 leading-relaxed max-w-2xl">
-                {intent.natural_language}
-              </p>
-              <div className="grid grid-cols-2 gap-y-4 gap-x-6 pt-5 border-t border-slate-100 dark:border-slate-800">
-                <div>
-                  <label className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Status</label>
-                  <p className="text-sm font-mono mt-1 text-slate-800 dark:text-slate-300">{intent.status}</p>
-                </div>
-                <div>
-                  <label className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Timestamp</label>
-                  <p className="text-sm font-mono mt-1 text-slate-800 dark:text-slate-300">{new Date(intent.timestamp * 1000).toLocaleString()}</p>
-                </div>
-                <div className="col-span-2">
-                  <label className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Submitter Address</label>
-                  <p className="text-sm font-mono mt-1 text-slate-500 dark:text-slate-400 break-all">{intent.submitter_address}</p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="h-[400px]">
-            <EvidenceViewer evidence={evidence} />
-          </div>
-        </div>
-
-        <div className="lg:col-span-1 flex flex-col gap-6">
-          <ConsensusPanel record={consensus} />
-          
-          <div className="h-[200px]">
-            <OutcomePanel outcome={outcome} />
-          </div>
-
-          <TraceTimeline logs={auditLogs} />
-        </div>
+    <div className="max-w-3xl mx-auto w-full animate-in fade-in duration-500 pb-16 pt-8">
+      <Link 
+        to="/dashboard"
+        className="text-[#2563EB] dark:text-[#3B82F6] hover:underline text-sm inline-block mb-6"
+      >
+        &larr; Back to Dashboard
+      </Link>
+      
+      <div className="bg-white dark:bg-[#1A1D27] border border-gray-200 dark:border-gray-800 rounded-xl p-6 shadow-sm">
+        <h2 className="text-lg font-semibold mb-6 pb-4 border-b border-gray-100 dark:border-gray-800">Intent #{intentId}</h2>
+        <IntentView intent={intent} />
       </div>
     </div>
   );

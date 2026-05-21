@@ -1,46 +1,96 @@
-export type IntentStatus = 'INTENT_SUBMITTED' | 'ADJUDICATING' | 'SETTLED' | 'FAILED';
+/**
+ * =========================
+ * GenLayer Intent Lifecycle
+ * =========================
+ *
+ * Models Intelligent Contract execution states
+ * with LLM-based validation + Optimistic Democracy consensus.
+ */
 
-export interface AuditRecord {
-  intent_id: number;
-  classification: string;
-  evidence_snippet: string;
-  timestamp: number;
-}
+export type IntentStatus =
+  | "INTENT_SUBMITTED"
+  | "VALIDATING"
+  | "ADJUDICATING"
+  | "CONSENSUS_REVIEW"
+  | "SETTLED"
+  | "REJECTED"
+  | "DISPUTED";
 
+/**
+ * Core Intent record stored in GenLayer contract state
+ */
 export interface IntentRecord {
-  id: number;
-  natural_language: string;
-  evidence_url: string;
-  submitter_address: string;
-  timestamp: number;
   status: IntentStatus;
+
+  natural_language: string;
+
+  /**
+   * Optional evidence attached during or after execution
+   */
+  evidence_url?: string;
+
+  submitter: string;
+
+  submitted_at: number;
+
+  /**
+   * 0 or undefined until final settlement
+   */
+  settled_at?: number;
+
+  /**
+   * Final outcome after consensus (may be undefined during execution)
+   */
+  outcome?: string;
 }
 
-export interface ConsensusRecord {
-  classification: 'FULFILLED' | 'UNFULFILLED' | 'INSUFFICIENT_EVIDENCE' | string;
-  confidence: 'HIGH' | 'MEDIUM' | 'LOW' | string;
-  reasoning: string;
-}
-
-export interface OutcomeObject {
+/**
+ * =========================
+ * Adjudication Trace Model
+ * =========================
+ *
+ * Represents validator/LLM execution steps
+ * during Intelligent Contract adjudication.
+ */
+export interface AdjudicationTrace {
   intent_id: number;
-  final_decision: string;
-  locked: boolean;
+
+  leader_classification: string;
+
+  evidence_summary: string;
+
+  adjudicated_at: number;
+
+  /**
+   * Optional metadata for advanced UI analytics
+   */
+  validator_count?: number;
+
+  consensus_score?: number;
 }
 
-export interface AppState {
-  intents: Record<number, IntentRecord>;
-  evidences: Record<number, string>;
-  consensus_traces: Record<number, ConsensusRecord>;
-  outcomes: Record<number, OutcomeObject>;
-  audit_trail: AuditRecord[];
-  walletAddress: string | null;
-  theme: 'light' | 'dark' | 'system';
-}
+/**
+ * =========================
+ * UI Helper Types
+ * =========================
+ *
+ * Used for LifecycleVisualizer + dashboards
+ */
 
-export interface StoreState extends AppState {
-  submitIntent: (nl: string, url: string) => void;
-  adjudicateIntent: (id: number) => void;
-  setWalletAddress: (address: string | null) => void;
-  setTheme: (theme: 'light' | 'dark' | 'system') => void;
-}
+export type IntentStageGroup =
+  | "active"
+  | "finalized"
+  | "failed";
+
+/**
+ * Maps GenLayer lifecycle states into UI-friendly groups
+ */
+export const IntentStageGroupMap: Record<IntentStatus, IntentStageGroup> = {
+  INTENT_SUBMITTED: "active",
+  VALIDATING: "active",
+  ADJUDICATING: "active",
+  CONSENSUS_REVIEW: "active",
+  SETTLED: "finalized",
+  REJECTED: "failed",
+  DISPUTED: "active"
+};

@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { Moon, Sun, Monitor } from 'lucide-react';
+import { Moon, Sun } from 'lucide-react';
 import { useStore } from '../../store';
 
 export function ThemeToggle() {
@@ -25,7 +25,7 @@ export function ThemeToggle() {
   return (
     <button 
       onClick={toggle} 
-      className="p-2 rounded-md border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+      className="p-2 rounded-md border border-gray-200 dark:border-gray-800 bg-[#FFFFFF] dark:bg-[#1A1D27] text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
       aria-label="Toggle theme"
     >
       {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
