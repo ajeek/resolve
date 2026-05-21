@@ -1,15 +1,23 @@
-/**
- * @license
- * SPDX-License-Identifier: Apache-2.0
- */
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { Layout } from './components/layout/Layout';
+import { Landing } from './pages/Landing';
+import { Dashboard } from './pages/Dashboard';
+import { IntentDetails } from './pages/IntentDetails';
+import { TraceExplorer } from './pages/TraceExplorer';
 
-import { StoreProvider } from './store';
-import AppShell from './components/AppShell';
-
-export default function App() {
+function App() {
   return (
-    <StoreProvider>
-      <AppShell />
-    </StoreProvider>
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<Layout />}>
+          <Route index element={<Landing />} />
+          <Route path="dashboard" element={<Dashboard />} />
+          <Route path="intent/:id" element={<IntentDetails />} />
+          <Route path="explorer" element={<TraceExplorer />} />
+        </Route>
+      </Routes>
+    </BrowserRouter>
   );
 }
+
+export default App;

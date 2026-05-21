@@ -1,14 +1,7 @@
-import { createContext, useContext, useState, ReactNode } from 'react';
-import { 
-  IntentRecord, 
-  ConsensusRecord, 
-  OutcomeObject, 
-  AuditRecord, 
-  UIState,
-  IntentStatus
-} from './types';
+import { create } from 'zustand';
+import { StoreState } from '../types';
 
-const initialState: UIState = {
+const initialState = {
   intents: {
     0: {
       id: 0,
@@ -16,7 +9,7 @@ const initialState: UIState = {
       evidence_url: "https://api.shipping.example/v1/status/20392",
       submitter_address: "0xABCDEF123456",
       timestamp: Date.now() / 1000 - 3600,
-      status: 'SETTLED'
+      status: 'SETTLED' as const
     },
     1: {
       id: 1,
@@ -24,7 +17,7 @@ const initialState: UIState = {
       evidence_url: "https://sensors.example/iot/batch/98",
       submitter_address: "0xABCDEF123456",
       timestamp: Date.now() / 1000 - 1800,
-      status: 'INTENT_SUBMITTED'
+      status: 'INTENT_SUBMITTED' as const
     }
   },
   evidences: {
@@ -51,44 +44,33 @@ const initialState: UIState = {
       evidence_snippet: `{"status": "DELIVERED", "times`,
       timestamp: Date.now() / 1000 - 3500
     }
-  ]
+  ],
+  walletAddress: null,
+  theme: 'system' as const,
 };
 
-interface StoreContextType {
-  state: UIState;
-  submitIntent: (nl: string, url: string) => void;
-  adjudicateIntent: (id: number) => void;
-}
-
-const StoreContext = createContext<StoreContextType | undefined>(undefined);
-
-export function StoreProvider({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<UIState>(initialState);
-
-  const submitIntent = (nl: string, url: string) => {
-    setState((prev) => {
-      const nextId = Object.keys(prev.intents).length;
-      return {
-        ...prev,
-        intents: {
-          ...prev.intents,
-          [nextId]: {
-            id: nextId,
-            natural_language: nl,
-            evidence_url: url,
-            submitter_address: "0x1234567890",
-            timestamp: Math.floor(Date.now() / 1000),
-            status: 'INTENT_SUBMITTED'
-          }
+export const useStore = create<StoreState>((set) => ({
+  ...initialState,
+  
+  submitIntent: (nl, url) => set((prev) => {
+    const nextId = Object.keys(prev.intents).length;
+    return {
+      intents: {
+        ...prev.intents,
+        [nextId]: {
+          id: nextId,
+          natural_language: nl,
+          evidence_url: url,
+          submitter_address: prev.walletAddress || "0x1234567890",
+          timestamp: Math.floor(Date.now() / 1000),
+          status: 'INTENT_SUBMITTED'
         }
-      };
-    });
-  };
+      }
+    };
+  }),
 
-  const adjudicateIntent = (id: number) => {
-    // Mock the protocol state progression
-    setState(prev => ({
-      ...prev,
+  adjudicateIntent: (id) => {
+    set(prev => ({
       intents: {
         ...prev.intents,
         [id]: { ...prev.intents[id], status: 'ADJUDICATING' }
@@ -96,13 +78,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     }));
 
     setTimeout(() => {
-      setState(prev => {
+      set(prev => {
         const intent = prev.intents[id];
         if (!intent) return prev;
         
-        // Randomly succeed or fail for demo purposes
-        const success = Math.random() > 0.2;
-        
+        const success = Math.random() > 0.3;
         const mockRawEvidence = `Fetched from ${intent.evidence_url}:\n{"success": ${success}, "observed": true, "timestamp": ${Date.now()}}`;
         const classification = success ? "FULFILLED" : "UNFULFILLED";
         const reasoning = success ? "Conditions met per source data." : "Conditions missing in source data.";
@@ -119,7 +99,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         }
 
         return {
-          ...prev,
           intents: {
             ...prev.intents,
             [id]: { ...intent, status: 'SETTLED' }
@@ -130,19 +109,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           },
           consensus_traces: {
             ...prev.consensus_traces,
-            [id]: {
-              classification,
-              confidence: "HIGH",
-              reasoning
-            }
+            [id]: { classification, confidence: "HIGH", reasoning }
           },
           outcomes: {
             ...prev.outcomes,
-            [id]: {
-              intent_id: id,
-              final_decision: classification,
-              locked: true
-            }
+            [id]: { intent_id: id, final_decision: classification, locked: true }
           },
           audit_trail: [
             ...prev.audit_trail,
@@ -155,18 +126,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           ]
         };
       });
-    }, 2500); // 2.5s for adjudicating simulation
-  };
+    }, 2000);
+  },
 
-  return (
-    <StoreContext.Provider value={{ state, submitIntent, adjudicateIntent }}>
-      {children}
-    </StoreContext.Provider>
-  );
-}
-
-export function useStore() {
-  const ctx = useContext(StoreContext);
-  if (!ctx) throw new Error('useStore must be used within StoreProvider');
-  return ctx;
-}
+  setWalletAddress: (address) => set({ walletAddress: address }),
+  setTheme: (theme) => set({ theme }),
+}));

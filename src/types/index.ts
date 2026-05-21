@@ -28,10 +28,19 @@ export interface OutcomeObject {
   locked: boolean;
 }
 
-export interface UIState {
+export interface AppState {
   intents: Record<number, IntentRecord>;
   evidences: Record<number, string>;
   consensus_traces: Record<number, ConsensusRecord>;
   outcomes: Record<number, OutcomeObject>;
   audit_trail: AuditRecord[];
+  walletAddress: string | null;
+  theme: 'light' | 'dark' | 'system';
+}
+
+export interface StoreState extends AppState {
+  submitIntent: (nl: string, url: string) => void;
+  adjudicateIntent: (id: number) => void;
+  setWalletAddress: (address: string | null) => void;
+  setTheme: (theme: 'light' | 'dark' | 'system') => void;
 }
